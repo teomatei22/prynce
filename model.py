@@ -117,9 +117,9 @@ SIG2 = np.square([0.003, 0.029])      # variances
 outfiles = {}
 
 PRIORS = {                       
-    1: (1e-4, 3e-3),       
-    2: (1e-9,   4e-5),       
-    3: (1e-5,   5e-2)        
+    1: (1e-5,   3e-3),       
+    2: (1e-5,   4e-4),       
+    3: (1e-5,   2e-3)        
 }
 
 def ln_prior(model, disp, param):
