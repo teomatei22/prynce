@@ -185,19 +185,14 @@ def plot_parameter_distribution(samples, param_label, disp_label, filename):
     # Fit beta distribution (more appropriate for positive parameters)
     # Normalize samples to [0,1] for beta fitting
     min_val, max_val = np.min(samples), np.max(samples)
-    normalized_samples = (samples - min_val) / (max_val - min_val)
     
-    # Avoid boundary values for beta distribution (requires 0 < x < 1)
-    epsilon = 1e-8
-    normalized_samples = np.clip(normalized_samples, epsilon, 1 - epsilon)
     
     # Fit beta distribution parameters
-    alpha_param, beta_param, loc, scale = beta.fit(normalized_samples, floc=0, fscale=1)
+    alpha_param, beta_param, loc, scale = beta.fit(samples, floc=0, fscale=1)
     
     x = np.linspace(np.min(samples), np.max(samples), 500)
-    x_norm = (x - min_val) / (max_val - min_val)
-    beta_pdf_norm = beta.pdf(x_norm, alpha_param, beta_param)
-    beta_pdf = beta_pdf_norm / (max_val - min_val)  # Scale back to original range
+    beta_pdf_norm = beta.pdf(x, alpha_param, beta_param, loc=loc, scale=scale)
+    beta_pdf = beta_pdf_norm 
     
     ax2.plot(x, beta_pdf, "r--", lw=2, label=f"Beta fit\nα={alpha_param:.2f}, β={beta_param:.2f}\nμ={mu:.4e}, σ={std:.2e}")
 
@@ -214,7 +209,7 @@ def plot_parameter_distribution(samples, param_label, disp_label, filename):
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{filename}_parameter.eps", format='eps', bbox_inches="tight")
+    plt.savefig(f"{filename}_parameter.jpeg", bbox_inches="tight")
     plt.close()
 
     print(f"Parameter statistics: μ = {mu:.4e}, σ = {std:.1e}")
