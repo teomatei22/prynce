@@ -31,7 +31,7 @@ class DataConfig:
 
 def compute_split_rhat(chains: np.ndarray) -> np.ndarray:
     """
-    Compute split-chain Gelman–Rubin R-hat per parameter.
+    Compute split-chain Gelman-Rubin R-hat per parameter.
 
     Parameters
     ----------
@@ -171,6 +171,22 @@ def plot_representative_trace(
     # Create step indices for the trace
     step_indices = np.arange(len(param_trace))
     
+    # Define model-specific titles and parameter names
+    model_titles = {
+        "dispersion_1": "Model I: $\\omega(k) = kc(1 + \\lambda \\hbar \\omega)$",
+        "dispersion_2": "Model II: $\\omega(k) = kc \\sqrt{1 - 2\\beta_0 \\hbar^2 \\omega^2}$", 
+        "dispersion_3": "Model III: $\\omega(k) = kc \\sqrt{1 - 2\\alpha_0 \\hbar \\omega}$"
+    }
+    
+    param_labels = {
+        "dispersion_1": "$\\lambda \\, [\\mathrm{MeV}^{-1}]$",
+        "dispersion_2": "$\\beta_0 \\, [\\mathrm{MeV}^{-2}]$",
+        "dispersion_3": "$\\alpha_0 \\, [\\mathrm{MeV}^{-1}]$"
+    }
+    
+    title = model_titles.get(model_name, f"{model_name.upper()} — Dispersion Parameter")
+    param_label = param_labels.get(model_name, "Dispersion Parameter")
+    
     # Plot the parameter trace
     ax.plot(
         step_indices,
@@ -181,15 +197,16 @@ def plot_representative_trace(
         label=f"Parameter trace ({len(param_trace)} samples)"
     )
 
-    ax.set_title(f"{model_name.upper()} — Dispersion Parameter", fontsize=15)
-    ax.set_xlabel("Step", fontsize=12.5)
-    ax.set_ylabel("Dispersion Parameter", fontsize=12.5)
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel("Step", fontsize=18)
+    ax.set_ylabel(param_label, fontsize=18)
+    ax.tick_params(axis='both', which='major', labelsize=18)
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="upper right", fontsize=10)
+    ax.legend(loc="upper right", fontsize=18)
 
     fig.tight_layout()
 
-    outpath = os.path.join(outdir, f"{model_name}_trace.png")
+    outpath = os.path.join(outdir, f"{model_name}_trace.eps")
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
     plt.close(fig)
     return outpath
@@ -343,14 +360,14 @@ def create_rhat_table(
     ax.axis("tight")
     ax.axis("off")
 
-    headers = ["Model", "Dispersion Parameter (mean ± std)", "R-hat Value", "Convergence Status"]
+    headers = ["Model", "Dispersion Parameter [MeV⁻ⁿ] (mean ± std)", "R-hat Value", "Convergence Status"]
 
     table = ax.table(
         cellText=table_data, colLabels=headers, cellLoc="center", loc="center"
     )
 
     table.auto_set_font_size(False)
-    table.set_fontsize(10)
+    table.set_fontsize(14)
     table.scale(1.2, 1.5)
 
     # Color code based on R-hat values or status
@@ -399,12 +416,12 @@ def create_rhat_table(
         legend_elements.append(plt.Rectangle((0, 0), 1, 1, facecolor="#d4edda", label="* = Artificial Chains"))
     ax.legend(handles=legend_elements, loc="upper right", bbox_to_anchor=(1, 0.98))
 
-    png_outpath = os.path.join(outdir, "all_models_comprehensive_table.png")
-    fig.savefig(png_outpath, dpi=200, bbox_inches="tight")
+    eps_outpath = os.path.join(outdir, "all_models_R.eps")
+    fig.savefig(eps_outpath, format='eps', bbox_inches="tight")
     plt.close(fig)
 
     # Save CSV version
-    csv_outpath = os.path.join(outdir, "all_models_comprehensive_table.csv")
+    csv_outpath = os.path.join(outdir, "all_models_R.csv")
     with open(csv_outpath, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow([
@@ -462,7 +479,7 @@ def create_rhat_table(
             else:
                 writer.writerow([model_name, "FILE_NOT_FOUND", "FILE_NOT_FOUND", "FILE_NOT_FOUND", "FILE_NOT_FOUND", 0, rhat_display, convergence_status])
 
-    return png_outpath, csv_outpath
+    return eps_outpath, csv_outpath
 
 
 def plot_prior_posterior_overlays(
@@ -493,6 +510,15 @@ def plot_prior_posterior_overlays(
     x_min = lower_bound - 0.1 * x_range
     x_max = upper_bound + 0.1 * x_range
     x = np.linspace(x_min, x_max, 1000)
+
+    # Define model-specific parameter names
+    param_labels = {
+        "dispersion_1": "$\\lambda \\, [\\mathrm{MeV}^{-1}]$",
+        "dispersion_2": "$\\beta_0 \\, [\\mathrm{MeV}^{-2}]$", 
+        "dispersion_3": "$\\alpha_0 \\, [\\mathrm{MeV}^{-1}]$"
+    }
+    
+    param_label = param_labels.get(model_name, "Dispersion Parameter")
 
     # Plot prior (uniform)
     prior_height = 1.0 / (upper_bound - lower_bound)
@@ -526,9 +552,10 @@ def plot_prior_posterior_overlays(
     )
     ax.fill_between(x, 0, posterior_pdf, alpha=0.3, color="#ff7f0e")
 
-    ax.set_xlabel("Dispersion Parameter", fontsize=12)
-    ax.set_ylabel("Density", fontsize=12)
-    ax.legend(loc="upper right")
+    ax.set_xlabel(param_label, fontsize=14)
+    ax.set_ylabel("Density", fontsize=14)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.legend(loc="upper right", fontsize=14)
     ax.grid(True, alpha=0.3)
 
     ax.axvline(lower_bound, color="#1f77b4", linestyle="--", alpha=0.7, linewidth=1)
@@ -536,7 +563,7 @@ def plot_prior_posterior_overlays(
 
     fig.tight_layout()
 
-    outpath = os.path.join(outdir, f"{model_name}_prior_posterior_overlay.png")
+    outpath = os.path.join(outdir, f"{model_name}_prior_posterior_overlay.eps")
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
     plt.close(fig)
     paths.append(outpath)
@@ -696,8 +723,8 @@ def main() -> None:
         all_models = ["dispersion_1", "dispersion_2", "dispersion_3"]
         table_paths = create_rhat_table(all_models, args.data_dir, cfg, args.outdir, args.create_artificial_chains)
         if table_paths:
-            png_path, csv_path = table_paths
-            print(f"Comprehensive table (PNG) saved to: {png_path}")
+            eps_path, csv_path = table_paths
+            print(f"Comprehensive table (EPS) saved to: {eps_path}")
             print(f"Comprehensive table (CSV) saved to: {csv_path}")
         else:
             print("Comprehensive table creation failed")

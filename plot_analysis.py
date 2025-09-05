@@ -1,8 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.stats import norm
+from scipy.stats import norm, beta
 from scipy.stats import chi2
+
+# Set global font size to 16
+plt.rcParams.update({
+    'font.size': 16,
+    'axes.titlesize': 16,
+    'axes.labelsize': 16,
+    'xtick.labelsize': 16,
+    'ytick.labelsize': 16,
+    'legend.fontsize': 16,
+    'figure.titlesize': 16
+})
 
 
 """
@@ -132,10 +143,10 @@ def calculate_model_selection_criteria(samples, log_likelihoods, n_params=1):
 
 def plot_parameter_distribution(samples, param_label, disp_label, filename):
     """
-    Create parameter distribution plots including trace plot and histogram with Gaussian fit.
+    Create parameter distribution plots including trace plot and histogram with Beta fit.
     
     This function generates a comprehensive visualization of parameter samples including
-    a trace plot showing the sampling history and a histogram with fitted Gaussian
+    a trace plot showing the sampling history and a histogram with fitted Beta
     distribution for statistical analysis.
     
     Parameters
@@ -153,7 +164,7 @@ def plot_parameter_distribution(samples, param_label, disp_label, filename):
     -----
     The function creates a two-panel figure:
     - Left panel: Trace plot showing parameter values vs sample index
-    - Right panel: Histogram with fitted Gaussian distribution
+    - Right panel: Histogram with fitted Beta distribution
     The plot is saved as PNG with 150 DPI resolution.
     """
     fig, (ax2) = plt.subplots(1, 1, figsize=(7,6))
@@ -168,27 +179,48 @@ def plot_parameter_distribution(samples, param_label, disp_label, filename):
         color='steelblue',
         edgecolor='navy',
         linewidth=1.2,
-        label=f"Posterior samples\nμ={mu:.2e}\nσ={std:.1e}",
+        label="Posterior samples",
     )
 
+    # Fit beta distribution (more appropriate for positive parameters)
+    # Normalize samples to [0,1] for beta fitting
+    min_val, max_val = np.min(samples), np.max(samples)
+    normalized_samples = (samples - min_val) / (max_val - min_val)
+    
+    # Avoid boundary values for beta distribution (requires 0 < x < 1)
+    epsilon = 1e-8
+    normalized_samples = np.clip(normalized_samples, epsilon, 1 - epsilon)
+    
+    # Fit beta distribution parameters
+    alpha_param, beta_param, loc, scale = beta.fit(normalized_samples, floc=0, fscale=1)
+    
     x = np.linspace(np.min(samples), np.max(samples), 500)
-    gaussian_pdf = norm.pdf(x, mu, std)
-    ax2.plot(x, gaussian_pdf, "r--", lw=2, label="Gaussian fit")
+    x_norm = (x - min_val) / (max_val - min_val)
+    beta_pdf_norm = beta.pdf(x_norm, alpha_param, beta_param)
+    beta_pdf = beta_pdf_norm / (max_val - min_val)  # Scale back to original range
+    
+    ax2.plot(x, beta_pdf, "r--", lw=2, label=f"Beta fit\nα={alpha_param:.2f}, β={beta_param:.2f}\nμ={mu:.4e}, σ={std:.2e}")
 
-    ax2.set_title(f"Parameter Distribution ({disp_label})")
-    ax2.set_xlabel(f"Parameter Value ({param_label})")
+    ax2.set_title(disp_label)
+    ax2.set_xlabel(f"{param_label}")
     ax2.set_ylabel("Probability Density")
-    ax2.legend()
+    
+    # Force legend to top right corner for dispersion_3 with smaller font
+    if "\\alpha_0" in disp_label:
+        ax2.legend(loc="upper right", fontsize=14)
+    else:
+        ax2.legend()
+    
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{filename}_parameter.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"{filename}_parameter.eps", format='eps', bbox_inches="tight")
     plt.close()
 
     print(f"Parameter statistics: μ = {mu:.4e}, σ = {std:.1e}")
 
 
-def plot_abundance_corner(data, disp_label, filename):
+def plot_abundance_corner(data, disp_label, filename, disp_number):
     """
     Create a comprehensive corner plot showing correlations between abundance parameters using getdist.
     
@@ -235,11 +267,11 @@ def plot_abundance_corner(data, disp_label, filename):
     
     g = plots.get_subplot_plotter()
     g.triangle_plot([samples], filled=True, contour_colors=[
-        ["red", "green", "blue"][int(disp_label[-1]) - 1],
+        ["red", "green", "blue"][disp_number - 1],
     ],diag1d_kwargs={'smooth': 0.1})
 
     
-    g.fig.suptitle(f"Abundances ({disp_label})", fontsize=14)
+    g.fig.suptitle(f"Abundances ({disp_label})", fontsize=16)
 
     
     g.export(f"{filename}_corner.eps")
@@ -311,7 +343,7 @@ def plot_abundance_distributions(data, disp_label, filename):
         axes[i].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(f"{filename}_abundances.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"{filename}_abundances.eps", format='eps', bbox_inches="tight")
     plt.close()
 
 
@@ -342,9 +374,9 @@ def main():
     The function handles missing data gracefully and provides informative output.
     """
     disp_labels = {
-        1: ("Dispersion 1", r"$\lambda$"),
-        2: ("Dispersion 2", r"$\beta$"),
-        3: ("Dispersion 3", r"$\alpha$"),
+        1: (r"Model I: $\omega(k) = kc(1 + \lambda \hbar \omega)$", r"$\lambda \, [\mathrm{MeV}^{-1}]$"),
+        2: (r"Model II: $\omega(k) = kc \sqrt{1 - 2\beta_0 \hbar^2 \omega^2}$", r"$\beta_0 \, [\mathrm{MeV}^{-2}]$"),
+        3: (r"Model III: $\omega(k) = kc \sqrt{1 - 2\alpha_0 \hbar \omega}$", r"$\alpha_0 \, [\mathrm{MeV}^{-1}]$"),
     }
 
     for disp in [1,2,3]:
@@ -385,11 +417,11 @@ def main():
             )
 
             if all(col in data.columns for col in ["Yp(CMB)", "DoH", "He3", "Li7", "Neff", "Omegabh2"]):
-                plot_abundance_corner(data, disp_labels[disp][0], base_filename)
+                plot_abundance_corner(data, disp_labels[disp][0], base_filename, disp)
                 plot_abundance_distributions(data, disp_labels[disp][0], base_filename)
 
                 plt.scatter(data["Yp(CMB)"], data["param"])
-                plt.savefig(f"analysis_disp{disp}.png", dpi=150, bbox_inches="tight")
+                plt.savefig(f"analysis_disp{disp}.eps", format='eps', bbox_inches="tight")
                 plt.close()
             
 
