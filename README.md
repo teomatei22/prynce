@@ -46,6 +46,7 @@ PRyNCe/
 ### Requirements
 
 - Python ≥ 3.8
+- PRyMordial: specifically commit bf24c3d 
 
 ### Install Dependencies
 
